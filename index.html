@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#d8c3a5" />
+  <meta name="description" content="Registro de lectura: un cuaderno suave y offline para anotar lecturas en curso y terminadas." />
+  <title>Registro de lectura</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Cuaderno personal</p>
+        <h1>Registro de lectura</h1>
+      </div>
+      <button id="installBtn" class="ghost-button hidden" type="button">Instalar</button>
+    </header>
+
+    <main class="main-content">
+      <section class="summary-card">
+        <div class="summary-grid">
+          <article>
+            <p class="summary-label">Leyendo</p>
+            <p class="summary-value" id="statReading">0</p>
+          </article>
+          <article>
+            <p class="summary-label">Terminados</p>
+            <p class="summary-value" id="statFinished">0</p>
+          </article>
+          <article>
+            <p class="summary-label">Este mes</p>
+            <p class="summary-value" id="statThisMonth">0</p>
+          </article>
+        </div>
+        <p class="summary-note" id="monthlyNote">Todavía no hay cierres de lectura.</p>
+      </section>
+
+      <nav class="tabs" aria-label="Secciones">
+        <button class="tab active" data-tab="current" type="button">Leyendo ahora</button>
+        <button class="tab" data-tab="history" type="button">Historial</button>
+        <button class="tab" data-tab="backup" type="button">Respaldo</button>
+      </nav>
+
+      <section id="tab-current" class="tab-panel active" aria-labelledby="Leyendo ahora">
+        <div class="panel-header">
+          <h2>En curso</h2>
+          <div class="toolbar-inline">
+            <input id="searchCurrent" class="search-input" type="search" placeholder="Buscar" />
+          </div>
+        </div>
+        <div id="currentList" class="card-list"></div>
+        <div id="currentEmpty" class="empty-state hidden">
+          <p>No hay lecturas en curso.</p>
+          <p class="muted">Podés agregar una nueva desde el botón inferior.</p>
+        </div>
+      </section>
+
+      <section id="tab-history" class="tab-panel" aria-labelledby="Historial">
+        <div class="panel-header panel-header-stack">
+          <div>
+            <h2>Historial</h2>
+            <p class="muted small" id="historyMeta">Sin registros todavía.</p>
+          </div>
+          <div class="toolbar-wrap">
+            <input id="searchHistory" class="search-input" type="search" placeholder="Buscar" />
+            <select id="historyTypeFilter" class="select-input" aria-label="Filtrar por tipo">
+              <option value="all">Todos los tipos</option>
+              <option value="libro">Libro</option>
+              <option value="historieta">Historieta</option>
+              <option value="revista">Revista</option>
+              <option value="apunte">Apunte</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+        </div>
+        <div id="historyMonthSummary" class="month-summary"></div>
+        <div id="historyList" class="history-groups"></div>
+        <div id="historyEmpty" class="empty-state hidden">
+          <p>No hay lecturas terminadas todavía.</p>
+        </div>
+      </section>
+
+      <section id="tab-backup" class="tab-panel" aria-labelledby="Respaldo">
+        <div class="panel-header panel-header-stack">
+          <div>
+            <h2>Respaldo</h2>
+            <p class="muted">Tus registros quedan guardados en este dispositivo. Acá podés exportarlos o restaurarlos.</p>
+          </div>
+        </div>
+        <div class="backup-card">
+          <button id="exportBtn" class="primary-button" type="button">Exportar copia JSON</button>
+          <label class="secondary-button file-label" for="importInput">Importar copia JSON</label>
+          <input id="importInput" type="file" accept="application/json" class="hidden-input" />
+          <button id="clearBtn" class="text-button" type="button">Borrar todos los registros de este dispositivo</button>
+          <p class="muted small">La importación reemplaza el contenido actual solo si confirmás.</p>
+        </div>
+      </section>
+    </main>
+
+    <button id="addBtn" class="fab" type="button" aria-label="Agregar registro">＋</button>
+
+    <dialog id="entryDialog" class="entry-dialog">
+      <form id="entryForm" method="dialog">
+        <div class="dialog-header">
+          <div>
+            <p class="eyebrow">Registro</p>
+            <h2 id="dialogTitle">Nueva lectura</h2>
+          </div>
+          <button id="closeDialogBtn" class="icon-button" type="button" aria-label="Cerrar">✕</button>
+        </div>
+
+        <input type="hidden" id="entryId" />
+
+        <label class="field">
+          <span>Nombre</span>
+          <input id="titleInput" name="title" type="text" maxlength="120" required />
+        </label>
+
+        <label class="field">
+          <span>Descripción breve</span>
+          <textarea id="descriptionInput" name="description" rows="3" maxlength="280"></textarea>
+        </label>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Tipo</span>
+            <select id="typeInput" name="type">
+              <option value="libro">Libro</option>
+              <option value="historieta">Historieta</option>
+              <option value="revista">Revista</option>
+              <option value="apunte">Apunte</option>
+              <option value="otro">Otro</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Formato</span>
+            <select id="formatInput" name="format">
+              <option value="fisico">Físico</option>
+              <option value="digital">Digital</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Estado</span>
+            <select id="statusInput" name="status">
+              <option value="reading">Leyendo</option>
+              <option value="finished">Terminado</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Inicio (opcional)</span>
+            <input id="startDateInput" name="startDate" type="date" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Fin</span>
+          <input id="endDateInput" name="endDate" type="date" />
+        </label>
+
+        <div class="dialog-actions">
+          <button class="secondary-button" type="button" id="cancelBtn">Cancelar</button>
+          <button class="primary-button" type="submit">Guardar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  </div>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
