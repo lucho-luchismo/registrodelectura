@@ -1,7 +1,7 @@
 {
   "name": "Registro de lectura",
   "short_name": "Lecturas",
-  "description": "Cuaderno personal y offline para registrar lecturas en curso y terminadas.",
+  "description": "Registro suave y offline para registrar lecturas en curso y terminadas.",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#f5efe4",

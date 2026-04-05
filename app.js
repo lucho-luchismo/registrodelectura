@@ -6,6 +6,7 @@ const state = {
   entries: [],
   activeTab: 'current',
   installPrompt: null,
+  openSwipeId: null,
 };
 
 const ui = {
@@ -20,9 +21,11 @@ const ui = {
   historyEmpty: document.getElementById('historyEmpty'),
   historyMeta: document.getElementById('historyMeta'),
   historyMonthSummary: document.getElementById('historyMonthSummary'),
-  searchCurrent: document.getElementById('searchCurrent'),
   searchHistory: document.getElementById('searchHistory'),
   historyTypeFilter: document.getElementById('historyTypeFilter'),
+  historyFormatFilter: document.getElementById('historyFormatFilter'),
+  menuBtn: document.getElementById('menuBtn'),
+  menuPanel: document.getElementById('menuPanel'),
   addBtn: document.getElementById('addBtn'),
   dialog: document.getElementById('entryDialog'),
   dialogTitle: document.getElementById('dialogTitle'),
@@ -35,7 +38,8 @@ const ui = {
   statusInput: document.getElementById('statusInput'),
   startDateInput: document.getElementById('startDateInput'),
   endDateInput: document.getElementById('endDateInput'),
-  cancelBtn: document.getElementById('cancelBtn'),
+  endDateField: document.getElementById('endDateField'),
+  deleteEntryBtn: document.getElementById('deleteEntryBtn'),
   closeDialogBtn: document.getElementById('closeDialogBtn'),
   exportBtn: document.getElementById('exportBtn'),
   importInput: document.getElementById('importInput'),
@@ -149,12 +153,13 @@ function sortEntries(entries) {
   });
 }
 
-function entryMatches(entry, searchText, typeFilter = 'all') {
+function entryMatches(entry, searchText, typeFilter = 'all', formatFilter = 'all') {
   const query = normalized(searchText);
   const haystack = normalized(`${entry.title} ${entry.description} ${entry.type} ${entry.format}`);
   const typeOk = typeFilter === 'all' || entry.type === typeFilter;
+  const formatOk = formatFilter === 'all' || entry.format === formatFilter;
   const queryOk = !query || haystack.includes(query);
-  return typeOk && queryOk;
+  return typeOk && formatOk && queryOk;
 }
 
 function renderSummary() {
@@ -168,40 +173,58 @@ function renderSummary() {
   ui.historyStatTotal.textContent = `Total histórico: ${total}`;
 }
 
+function renderEntryRow(entry, mode) {
+  const article = document.createElement('article');
+  article.className = 'entry-row-wrap';
+  article.dataset.id = entry.id;
+
+  const leftAction = mode === 'history'
+    ? `<button class="swipe-action edit" data-action="edit" data-id="${entry.id}" type="button">Editar</button>`
+    : `<button class="swipe-action edit" data-action="edit" data-id="${entry.id}" type="button">Editar</button>`;
+
+  const rightAction = mode === 'history'
+    ? `<button class="swipe-action reopen" data-action="reopen" data-id="${entry.id}" type="button">Leyendo</button>`
+    : `<button class="swipe-action finish" data-action="finish" data-id="${entry.id}" type="button">Terminar</button>`;
+
+  const dateLine = mode === 'history'
+    ? `Inicio: ${formatDate(entry.startDate)} · Fin: ${formatDate(entry.endDate)}`
+    : `Inicio: ${formatDate(entry.startDate)}`;
+
+  article.innerHTML = `
+    <div class="swipe-actions">
+      <div class="swipe-actions-left">${leftAction}</div>
+      <div class="swipe-actions-right">${rightAction}</div>
+    </div>
+    <div class="entry-row" data-id="${entry.id}">
+      <div class="entry-mainline">
+        <h3>${escapeHtml(entry.title)}</h3>
+      </div>
+      <p class="entry-meta">${labelType(entry.type)} · ${labelFormat(entry.format)} · ${dateLine}</p>
+      ${entry.description ? `<p class="entry-description">${escapeHtml(entry.description)}</p>` : ''}
+    </div>
+  `;
+  return article;
+}
+
 function renderCurrent() {
-  const query = ui.searchCurrent.value;
   const entries = sortEntries(state.entries)
-    .filter((entry) => entry.status === 'reading')
-    .filter((entry) => entryMatches(entry, query));
+    .filter((entry) => entry.status === 'reading');
 
   ui.currentList.innerHTML = '';
   ui.currentEmpty.classList.toggle('hidden', entries.length > 0);
 
   entries.forEach((entry) => {
-    const article = document.createElement('article');
-    article.className = 'reading-card';
-    article.innerHTML = `
-      <div class="card-topline">
-        <h3>${escapeHtml(entry.title)}</h3>
-      </div>
-      <p class="card-subline">${labelType(entry.type)} · ${labelFormat(entry.format)} · Inicio: ${formatDate(entry.startDate)}</p>
-      ${entry.description ? `<p class="card-description">${escapeHtml(entry.description)}</p>` : ''}
-      <div class="card-actions">
-        <button class="secondary-button" data-action="finish" data-id="${entry.id}" type="button">Marcar terminado</button>
-        <button class="secondary-button" data-action="edit" data-id="${entry.id}" type="button">Editar</button>
-        <button class="text-button" data-action="delete" data-id="${entry.id}" type="button">Borrar</button>
-      </div>
-    `;
-    ui.currentList.appendChild(article);
+    ui.currentList.appendChild(renderEntryRow(entry, 'current'));
   });
 }
 
 function renderHistory() {
   const query = ui.searchHistory.value;
   const typeFilter = ui.historyTypeFilter.value;
+  const formatFilter = ui.historyFormatFilter.value;
   const entries = sortEntries(state.entries)
     .filter((entry) => entry.status === 'finished')
-    .filter((entry) => entryMatches(entry, query, typeFilter))
+    .filter((entry) => entryMatches(entry, query, typeFilter, formatFilter))
     .sort((a, b) => (b.endDate || '').localeCompare(a.endDate || '') || (b.updatedAt || '').localeCompare(a.updatedAt || ''));
 
   ui.historyList.innerHTML = '';
@@ -246,21 +269,7 @@ function renderHistory() {
       section.appendChild(header);
 
       groupEntries.forEach((entry) => {
-        const article = document.createElement('article');
-        article.className = 'history-card';
-        article.innerHTML = `
-          <div class="card-topline">
-            <h3>${escapeHtml(entry.title)}</h3>
-          </div>
-          <p class="card-subline">${labelType(entry.type)} · ${labelFormat(entry.format)} · Inicio: ${formatDate(entry.startDate)} · Fin: ${formatDate(entry.endDate)}</p>
-          ${entry.description ? `<p class="card-description">${escapeHtml(entry.description)}</p>` : ''}
-          <div class="card-actions">
-            <button class="secondary-button" data-action="reopen" data-id="${entry.id}" type="button">Volver a leyendo</button>
-            <button class="secondary-button" data-action="edit" data-id="${entry.id}" type="button">Editar</button>
-            <button class="text-button" data-action="delete" data-id="${entry.id}" type="button">Borrar</button>
-          </div>
-        `;
-        section.appendChild(article);
+        section.appendChild(renderEntryRow(entry, 'history'));
       });
 
       ui.historyList.appendChild(section);
@@ -268,6 +277,7 @@ function renderHistory() {
 }
 
 function renderAll() {
+  state.openSwipeId = null;
   renderSummary();
   renderCurrent();
   renderHistory();
@@ -302,12 +312,23 @@ function capitalize(text) {
 
 function setTab(tabName) {
   state.activeTab = tabName;
-  document.querySelectorAll('.tab').forEach((tab) => {
+  document.querySelectorAll('.menu-item').forEach((tab) => {
     tab.classList.toggle('active', tab.dataset.tab === tabName);
   });
   document.querySelectorAll('.tab-panel').forEach((panel) => {
     panel.classList.toggle('active', panel.id === `tab-${tabName}`);
   });
+  closeMenu();
+}
+
+function openMenu() {
+  ui.menuPanel.classList.remove('hidden');
+  ui.menuBtn.setAttribute('aria-expanded', 'true');
+}
+
+function closeMenu() {
+  ui.menuPanel.classList.add('hidden');
+  ui.menuBtn.setAttribute('aria-expanded', 'false');
 }
 
 function resetForm() {
@@ -316,13 +337,14 @@ function resetForm() {
   ui.statusInput.value = 'reading';
   ui.endDateInput.value = '';
   ui.dialogTitle.textContent = 'Nueva lectura';
+  ui.deleteEntryBtn.classList.add('hidden');
   syncEndDateState();
 }
 
 function syncEndDateState() {
   const finished = ui.statusInput.value === 'finished';
   ui.endDateInput.disabled = !finished;
-  ui.endDateInput.closest('.field').style.opacity = finished ? '1' : '0.65';
+  ui.endDateField.style.opacity = finished ? '1' : '0.6';
   if (!finished) ui.endDateInput.value = '';
 }
 
@@ -343,6 +365,7 @@ function openEditDialog(id) {
   ui.statusInput.value = entry.status || 'reading';
   ui.startDateInput.value = entry.startDate || '';
   ui.endDateInput.value = entry.endDate || '';
+  ui.deleteEntryBtn.classList.remove('hidden');
   syncEndDateState();
   ui.dialog.showModal();
 }
@@ -367,7 +390,7 @@ async function handleFormSubmit(event) {
   };
 
   if (!entry.title) {
-    showToast('El nombre es obligatorio.');
+    showToast('El título es obligatorio.');
     return;
   }
 
@@ -382,6 +405,22 @@ async function refreshEntries() {
   renderAll();
 }
 
+function closeAllSwipes() {
+  document.querySelectorAll('.entry-row').forEach((row) => {
+    row.classList.remove('swiped-left', 'swiped-right');
+  });
+  state.openSwipeId = null;
+}
+
+function setSwipeState(id, direction) {
+  closeAllSwipes();
+  if (!id || !direction) return;
+  const row = document.querySelector(`.entry-row[data-id="${CSS.escape(id)}"]`);
+  if (!row) return;
+  row.classList.add(direction === 'left' ? 'swiped-left' : 'swiped-right');
+  state.openSwipeId = id;
+}
+
 async function handleCardAction(event) {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
@@ -391,15 +430,6 @@ async function handleCardAction(event) {
 
   if (action === 'edit') {
     openEditDialog(id);
-    return;
-  }
-
-  if (action === 'delete') {
-    const confirmed = window.confirm(`¿Borrar “${entry.title}”?`);
-    if (!confirmed) return;
-    await deleteEntry(id);
-    await refreshEntries();
-    showToast('Registro borrado.');
     return;
   }
 
@@ -427,6 +457,48 @@ async function handleCardAction(event) {
     await refreshEntries();
     showToast('Volvió a lecturas en curso.');
   }
+}
+
+function setupSwipe(container) {
+  let startX = 0;
+  let currentId = null;
+
+  container.addEventListener('pointerdown', (event) => {
+    const row = event.target.closest('.entry-row');
+    if (!row || event.pointerType === 'mouse' && event.button !== 0) return;
+    startX = event.clientX;
+    currentId = row.dataset.id;
+  });
+
+  container.addEventListener('pointerup', (event) => {
+    if (!currentId) return;
+    const deltaX = event.clientX - startX;
+    if (deltaX > 44) {
+      setSwipeState(currentId, 'right');
+    } else if (deltaX < -44) {
+      setSwipeState(currentId, 'left');
+    } else if (Math.abs(deltaX) < 10 && state.openSwipeId === currentId) {
+      closeAllSwipes();
+    }
+    currentId = null;
+  });
+
+  container.addEventListener('pointercancel', () => {
+    currentId = null;
+  });
+}
+
+async function handleDeleteFromDialog() {
+  const id = ui.entryId.value;
+  if (!id) return;
+  const entry = state.entries.find((item) => item.id === id);
+  if (!entry) return;
+  const confirmed = window.confirm(`¿Eliminar “${entry.title}”?`);
+  if (!confirmed) return;
+  await deleteEntry(id);
+  ui.dialog.close();
+  await refreshEntries();
+  showToast('Registro eliminado.');
 }
 
 function exportJson() {
@@ -503,20 +575,32 @@ function setupInstallPrompt() {
 }
 
 function bindEvents() {
-  document.querySelectorAll('.tab').forEach((tab) => {
+  document.querySelectorAll('.menu-item').forEach((tab) => {
     tab.addEventListener('click', () => setTab(tab.dataset.tab));
   });
 
+  ui.menuBtn.addEventListener('click', () => {
+    const expanded = ui.menuBtn.getAttribute('aria-expanded') === 'true';
+    if (expanded) closeMenu(); else openMenu();
+  });
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.menu-wrap')) closeMenu();
+    if (!event.target.closest('.entry-row-wrap')) closeAllSwipes();
+  });
+
   ui.addBtn.addEventListener('click', openCreateDialog);
-  ui.cancelBtn.addEventListener('click', () => ui.dialog.close());
   ui.closeDialogBtn.addEventListener('click', () => ui.dialog.close());
   ui.form.addEventListener('submit', handleFormSubmit);
   ui.statusInput.addEventListener('change', syncEndDateState);
-  ui.searchCurrent.addEventListener('input', renderCurrent);
   ui.searchHistory.addEventListener('input', renderHistory);
   ui.historyTypeFilter.addEventListener('change', renderHistory);
+  ui.historyFormatFilter.addEventListener('change', renderHistory);
   ui.currentList.addEventListener('click', handleCardAction);
   ui.historyList.addEventListener('click', handleCardAction);
+  setupSwipe(ui.currentList);
+  setupSwipe(ui.historyList);
+  ui.deleteEntryBtn.addEventListener('click', handleDeleteFromDialog);
   ui.exportBtn.addEventListener('click', exportJson);
   ui.importInput.addEventListener('change', async (event) => {
     const [file] = event.target.files || [];
