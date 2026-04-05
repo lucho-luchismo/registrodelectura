@@ -22,24 +22,6 @@
     </header>
 
     <main class="main-content">
-      <section class="summary-card">
-        <div class="summary-grid">
-          <article>
-            <p class="summary-label">Leyendo</p>
-            <p class="summary-value" id="statReading">0</p>
-          </article>
-          <article>
-            <p class="summary-label">Terminados</p>
-            <p class="summary-value" id="statFinished">0</p>
-          </article>
-          <article>
-            <p class="summary-label">Este mes</p>
-            <p class="summary-value" id="statThisMonth">0</p>
-          </article>
-        </div>
-        <p class="summary-note" id="monthlyNote">Todavía no hay cierres de lectura.</p>
-      </section>
-
       <nav class="tabs" aria-label="Secciones">
         <button class="tab active" data-tab="current" type="button">Leyendo ahora</button>
         <button class="tab" data-tab="history" type="button">Historial</button>
@@ -58,6 +40,7 @@
           <p>No hay lecturas en curso.</p>
           <p class="muted">Podés agregar una nueva desde el botón inferior.</p>
         </div>
+        <p id="currentSummary" class="panel-footnote muted small">Leyendo ahora: 0.</p>
       </section>
 
       <section id="tab-history" class="tab-panel" aria-labelledby="Historial">
@@ -78,7 +61,20 @@
             </select>
           </div>
         </div>
-        <div id="historyMonthSummary" class="month-summary"></div>
+
+        <section class="history-summary-block">
+          <div class="history-summary-lines muted small">
+            <p id="historyStatReading">Leyendo ahora: 0</p>
+            <p id="historyStatFinished">Terminados: 0</p>
+            <p id="historyStatTotal">Total histórico: 0</p>
+          </div>
+
+          <details class="history-month-details" id="historyMonthDetails">
+            <summary>Por mes</summary>
+            <div id="historyMonthSummary" class="history-month-summary-list"></div>
+          </details>
+        </section>
+
         <div id="historyList" class="history-groups"></div>
         <div id="historyEmpty" class="empty-state hidden">
           <p>No hay lecturas terminadas todavía.</p>

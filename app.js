@@ -9,10 +9,11 @@ const state = {
 };
 
 const ui = {
-  statReading: document.getElementById('statReading'),
-  statFinished: document.getElementById('statFinished'),
-  statThisMonth: document.getElementById('statThisMonth'),
-  monthlyNote: document.getElementById('monthlyNote'),
+  currentSummary: document.getElementById('currentSummary'),
+  historyStatReading: document.getElementById('historyStatReading'),
+  historyStatFinished: document.getElementById('historyStatFinished'),
+  historyStatTotal: document.getElementById('historyStatTotal'),
+  historyMonthDetails: document.getElementById('historyMonthDetails'),
   currentList: document.getElementById('currentList'),
   currentEmpty: document.getElementById('currentEmpty'),
   historyList: document.getElementById('historyList'),
@@ -159,32 +160,12 @@ function entryMatches(entry, searchText, typeFilter = 'all') {
 function renderSummary() {
   const reading = state.entries.filter((entry) => entry.status === 'reading');
   const finished = state.entries.filter((entry) => entry.status === 'finished');
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const finishedThisMonth = finished.filter((entry) => monthKey(entry.endDate) === currentMonth);
+  const total = state.entries.length;
 
-  ui.statReading.textContent = String(reading.length);
-  ui.statFinished.textContent = String(finished.length);
-  ui.statThisMonth.textContent = String(finishedThisMonth.length);
-
-  if (!finished.length) {
-    ui.monthlyNote.textContent = 'Todavía no hay cierres de lectura.';
-    return;
-  }
-
-  const monthlyMap = new Map();
-  finished.forEach((entry) => {
-    const key = monthKey(entry.endDate);
-    monthlyMap.set(key, (monthlyMap.get(key) || 0) + 1);
-  });
-
-  const latestRealMonth = [...monthlyMap.keys()].filter((key) => key !== 'Sin fecha').sort().pop();
-  if (!latestRealMonth) {
-    ui.monthlyNote.textContent = 'Hay lecturas terminadas sin fecha de cierre.';
-    return;
-  }
-
-  const latestCount = monthlyMap.get(latestRealMonth);
-  ui.monthlyNote.textContent = `${monthLabel(latestRealMonth)}: ${latestCount} ${latestCount === 1 ? 'lectura terminada' : 'lecturas terminadas'}.`;
+  ui.currentSummary.textContent = `Leyendo ahora: ${reading.length}.`;
+  ui.historyStatReading.textContent = `Leyendo ahora: ${reading.length}`;
+  ui.historyStatFinished.textContent = `Terminados: ${finished.length}`;
+  ui.historyStatTotal.textContent = `Total histórico: ${total}`;
 }
 
 function renderCurrent() {
@@ -202,13 +183,8 @@ function renderCurrent() {
     article.innerHTML = `
       <div class="card-topline">
         <h3>${escapeHtml(entry.title)}</h3>
-        <span class="badge status">Leyendo</span>
       </div>
-      <div class="card-badges">
-        <span class="badge">${labelType(entry.type)}</span>
-        <span class="badge">${labelFormat(entry.format)}</span>
-        <span class="badge">Inicio: ${formatDate(entry.startDate)}</span>
-      </div>
+      <p class="card-subline">${labelType(entry.type)} · ${labelFormat(entry.format)} · Inicio: ${formatDate(entry.startDate)}</p>
       ${entry.description ? `<p class="card-description">${escapeHtml(entry.description)}</p>` : ''}
       <div class="card-actions">
         <button class="secondary-button" data-action="finish" data-id="${entry.id}" type="button">Marcar terminado</button>
@@ -244,11 +220,13 @@ function renderHistory() {
   [...monthCounts.entries()]
     .sort((a, b) => b[0].localeCompare(a[0]))
     .forEach(([key, count]) => {
-      const chip = document.createElement('div');
-      chip.className = 'history-month-chip';
-      chip.innerHTML = `<span class="muted small">${capitalize(monthLabel(key))}</span><strong>${count}</strong>`;
-      ui.historyMonthSummary.appendChild(chip);
+      const row = document.createElement('div');
+      row.className = 'history-month-row muted small';
+      row.innerHTML = `<span>${capitalize(monthLabel(key))}</span><strong>${count}</strong>`;
+      ui.historyMonthSummary.appendChild(row);
     });
+
+  ui.historyMonthDetails.open = monthCounts.size > 0;
 
   const grouped = new Map();
   entries.forEach((entry) => {
@@ -273,13 +251,8 @@ function renderHistory() {
         article.innerHTML = `
           <div class="card-topline">
             <h3>${escapeHtml(entry.title)}</h3>
-            <span class="badge status">Terminado</span>
           </div>
-          <div class="card-badges">
-            <span class="badge">${labelType(entry.type)}</span>
-            <span class="badge">${labelFormat(entry.format)}</span>
-          </div>
-          <p class="history-meta muted small">Inicio: ${formatDate(entry.startDate)} · Fin: ${formatDate(entry.endDate)}</p>
+          <p class="card-subline">${labelType(entry.type)} · ${labelFormat(entry.format)} · Inicio: ${formatDate(entry.startDate)} · Fin: ${formatDate(entry.endDate)}</p>
           ${entry.description ? `<p class="card-description">${escapeHtml(entry.description)}</p>` : ''}
           <div class="card-actions">
             <button class="secondary-button" data-action="reopen" data-id="${entry.id}" type="button">Volver a leyendo</button>
