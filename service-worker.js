@@ -1,4 +1,4 @@
-const CACHE_NAME = 'registro-lectura-v1';
+const CACHE_NAME = 'registro-lectura-v4';
 const APP_SHELL = [
   './',
   './index.html',
